@@ -20,19 +20,30 @@
             android:id="@+id/checkDevice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="设备检测" />
+            android:text="设备检测" 
+            android:textSize="12dp"/>
 
         <Button
             android:id="@+id/searchDevice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="设备搜索" />
+            android:text="设备搜索" 
+             android:textSize="12dp"/>
 
         <Button
             android:id="@+id/playDevice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="播放音频" />
+            android:text="播放音频"
+             android:textSize="12dp" />
+
+        <Button
+            android:id="@+id/stopDevice"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="停止音频" 
+             android:textSize="12dp"/>
+
     </LinearLayout>
 
     <RelativeLayout

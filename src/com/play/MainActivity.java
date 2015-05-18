@@ -1,10 +1,15 @@
 package com.play;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-
-import com.play.utils.BluetoothUtils;
 
 import android.R.integer;
 import android.app.Activity;
@@ -12,12 +17,21 @@ import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
+import android.bluetooth.BluetoothProfile.ServiceListener;
 import android.bluetooth.BluetoothSocket;
+import android.bluetooth.IBluetoothA2dp;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.media.AudioFormat;
+import android.media.AudioManager;
+import android.media.AudioRecord;
+import android.media.AudioTrack;
+import android.media.MediaRecorder;
+import android.os.AsyncTask;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,13 +39,10 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.RemoteViewsService;
 import android.widget.TextView;
 
 public class MainActivity extends Activity implements OnClickListener {
 
-	private final static String TAG = "Play";
-	private final static String PASSWORD = "0";
 	private final static String DEVICE = "S-35";
 
 	private Button checkBtn;
@@ -40,7 +51,8 @@ public class MainActivity extends Activity implements OnClickListener {
 	private LinearLayout statusContent;
 	private Context mContext;
 	private BluetoothAdapter mAdapter;
-
+	
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -104,7 +116,6 @@ public class MainActivity extends Activity implements OnClickListener {
 							BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 2000);
 					mIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
 					mContext.startActivity(mIntent);
-					loggerMsg("蓝牙启动成功！");
 
 				} else {
 					loggerMsg("蓝牙已开启!");
@@ -126,58 +137,150 @@ public class MainActivity extends Activity implements OnClickListener {
 			mAdapter.startDiscovery();
 			break;
 		case R.id.playDevice:
-			loggerMsg("laishi");
+			loggerMsg("声音测试");
+			sendVoice();
+			break;
+		case R.id.stopDevice:
+			loggerMsg("声音测试");
+			sendVoice();
 			break;
 		default:
 			break;
 		}
 
 	}
-
+	private void sendVoice(){
+		//开始录制  
+        
+        //这里启动录制任务  
+		loggerMsg("声音测试");
+		
+	}
 	private BroadcastReceiver BlueReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
-			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
-				loggerMsg("发现蓝牙设备！");
+			if (BluetoothDevice.ACTION_FOUND.equals(action)) {				
+				BluetoothDevice tempDevice = intent
+						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);				
+				if (tempDevice.getName().equalsIgnoreCase(DEVICE)) {
+					mAdapter.cancelDiscovery();
+					loggerMsg("发现匹配的设备！");
+					loggerMsg("设备名称:" + tempDevice.getName());
+					loggerMsg("设备地址:" + tempDevice.getAddress());
+					int connectState = tempDevice.getBondState();
+					switch (connectState) {
+					// 未配对
+					case BluetoothDevice.BOND_NONE:
+						// 尝试配对
+						try {
+							loggerMsg("开始配对......");
+							Method createBondMethod = BluetoothDevice.class
+									.getMethod("createBond");
+							createBondMethod.invoke(tempDevice);
+						} catch (Exception e) {
+							loggerMsg("配对失败,请重新尝试....");
+							e.printStackTrace();
+						}
+						break;
+					// 已配对
+					case BluetoothDevice.BOND_BONDED:
+						try {
+							loggerMsg("已经配对,开始尝试连接......");
+							conntectA2dp(mContext, tempDevice);
+						} catch (Exception e) {
+							loggerMsg("连接失败,请重试......");
+							e.printStackTrace();
+						}
+						break;
+
+					default:
+						break;
+					}
+				}
+
+			} else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED
+					.equalsIgnoreCase(action)) {
+				
 				BluetoothDevice tempDevice = intent
 						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				loggerMsg("设备名称:" + tempDevice.getName());
-				loggerMsg("设备地址:" + tempDevice.getAddress());
-				BluetoothSocket socket = null;
-				try {
-					Method m = tempDevice.getClass().getMethod(
-							"createRfcommSocket", new Class[] { int.class });
-					socket = (BluetoothSocket) m.invoke(tempDevice, 1);// 这里端口为1
-				} catch (SecurityException e) {
-					e.printStackTrace();
-				} catch (NoSuchMethodException e) {
-					e.printStackTrace();
-				} catch (IllegalArgumentException e) {
-					e.printStackTrace();
-				} catch (IllegalAccessException e) {
-					e.printStackTrace();
-				} catch (InvocationTargetException e) {
-					e.printStackTrace();
-				}
-
-				try {
-					socket.connect();
-
-				} catch (IOException e1) {
-
-					try {
-						socket.close();
-					} catch (IOException e) {
-						// TODO Auto-generated catch block
-						e.printStackTrace();
+				
+				if (tempDevice.getName().equalsIgnoreCase(DEVICE)) {
+					loggerMsg("发现匹配的设备！");
+					loggerMsg("设备名称:" + tempDevice.getName());
+					loggerMsg("设备地址:" + tempDevice.getAddress());
+					int connectState = tempDevice.getBondState();
+					switch (connectState) {
+					case BluetoothDevice.BOND_NONE:
+						break;
+					case BluetoothDevice.BOND_BONDING:
+						break;
+					case BluetoothDevice.BOND_BONDED:
+						try {
+							loggerMsg("已经配对,开始尝试连接......");
+							conntectA2dp(mContext, tempDevice);
+						} catch (Exception e) {
+							loggerMsg("连接失败,请重试......");
+							e.printStackTrace();
+						}
+						break;
+					default:
+						break;
 					}
-					socket = null;
 				}
+
 			}
 
 		}
 
 	};
+
+	private void conntectA2dp(Context context,
+			final BluetoothDevice deviceToConnect) {
+		try {
+			Class<?> c2 = Class.forName("android.os.ServiceManager");
+			Method m2 = c2.getDeclaredMethod("getService", String.class);
+			IBinder b = (IBinder) m2.invoke(c2.newInstance(), "bluetooth_a2dp");
+			if (b == null) {
+				// For Android 4.2 Above Devices
+				BluetoothAdapter.getDefaultAdapter().getProfileProxy(context,
+						new ServiceListener() {
+
+							@Override
+							public void onServiceDisconnected(int profile) {
+
+							}
+
+							@Override
+							public void onServiceConnected(int profile,
+									BluetoothProfile proxy) {
+								BluetoothA2dp a2dp = (BluetoothA2dp) proxy;
+								try {
+									a2dp.getClass()
+											.getMethod("connect",
+													BluetoothDevice.class)
+											.invoke(a2dp, deviceToConnect);
+								} catch (Exception e) {
+									e.printStackTrace();
+								}
+							}
+						}, BluetoothProfile.A2DP);
+			} else {
+				Class<?> c3 = Class.forName("android.bluetooth.IBluetoothA2dp");
+				Class<?>[] s2 = c3.getDeclaredClasses();
+				Class<?> c = s2[0];
+				Method m = c.getDeclaredMethod("asInterface", IBinder.class);
+				m.setAccessible(true);
+				IBluetoothA2dp a2dp = (IBluetoothA2dp) m.invoke(null, b);
+				a2dp.connect(deviceToConnect);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+	
+	
+
+
 }
