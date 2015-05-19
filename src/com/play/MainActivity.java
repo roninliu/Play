@@ -1,24 +1,13 @@
 package com.play;
 
-import java.io.BufferedInputStream;
-import java.io.BufferedOutputStream;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import android.R.integer;
 import android.app.Activity;
 import android.bluetooth.BluetoothA2dp;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothProfile;
 import android.bluetooth.BluetoothProfile.ServiceListener;
-import android.bluetooth.BluetoothSocket;
 import android.bluetooth.IBluetoothA2dp;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -29,10 +18,8 @@ import android.media.AudioManager;
 import android.media.AudioRecord;
 import android.media.AudioTrack;
 import android.media.MediaRecorder;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.IBinder;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -48,11 +35,13 @@ public class MainActivity extends Activity implements OnClickListener {
 	private Button checkBtn;
 	private Button searchBtn;
 	private Button playBtn;
+	private Button stopBtn;
 	private LinearLayout statusContent;
 	private Context mContext;
 	private BluetoothAdapter mAdapter;
-	
-	
+	private RecordThread rec;
+	private boolean isEnd = false;
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -64,12 +53,14 @@ public class MainActivity extends Activity implements OnClickListener {
 		checkBtn = (Button) findViewById(R.id.checkDevice);
 		searchBtn = (Button) findViewById(R.id.searchDevice);
 		playBtn = (Button) findViewById(R.id.playDevice);
-		statusContent = (LinearLayout) findViewById(R.id.statusContent);
+		stopBtn = (Button) findViewById(R.id.stopDevice);
+ 		statusContent = (LinearLayout) findViewById(R.id.statusContent);
 		mContext = getApplicationContext();
 		mAdapter = BluetoothAdapter.getDefaultAdapter();
 		checkBtn.setOnClickListener(this);
 		searchBtn.setOnClickListener(this);
 		playBtn.setOnClickListener(this);
+		stopBtn.setOnClickListener(this);
 	}
 
 	private void loggerMsg(String msg) {
@@ -138,32 +129,27 @@ public class MainActivity extends Activity implements OnClickListener {
 			break;
 		case R.id.playDevice:
 			loggerMsg("声音测试");
-			sendVoice();
+			rec = new RecordThread();
+			rec.start();
 			break;
 		case R.id.stopDevice:
-			loggerMsg("声音测试");
-			sendVoice();
+			isEnd = true;
 			break;
+		
 		default:
 			break;
 		}
 
 	}
-	private void sendVoice(){
-		//开始录制  
-        
-        //这里启动录制任务  
-		loggerMsg("声音测试");
-		
-	}
+
 	private BroadcastReceiver BlueReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
-			if (BluetoothDevice.ACTION_FOUND.equals(action)) {				
+			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
 				BluetoothDevice tempDevice = intent
-						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);				
+						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				if (tempDevice.getName().equalsIgnoreCase(DEVICE)) {
 					mAdapter.cancelDiscovery();
 					loggerMsg("发现匹配的设备！");
@@ -202,10 +188,10 @@ public class MainActivity extends Activity implements OnClickListener {
 
 			} else if (BluetoothDevice.ACTION_BOND_STATE_CHANGED
 					.equalsIgnoreCase(action)) {
-				
+
 				BluetoothDevice tempDevice = intent
 						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-				
+
 				if (tempDevice.getName().equalsIgnoreCase(DEVICE)) {
 					loggerMsg("发现匹配的设备！");
 					loggerMsg("设备名称:" + tempDevice.getName());
@@ -235,6 +221,40 @@ public class MainActivity extends Activity implements OnClickListener {
 		}
 
 	};
+
+	class RecordThread extends Thread {
+		static final int frequency = 44100;
+		static final int channelConfiguration = AudioFormat.CHANNEL_CONFIGURATION_MONO;
+		static final int audioEncoding = AudioFormat.ENCODING_PCM_16BIT;
+
+		@Override
+		public void run() {
+			// TODO Auto-generated method stub
+			int recBufSize = AudioRecord.getMinBufferSize(frequency,
+					channelConfiguration, audioEncoding) * 2;
+			int plyBufSize = AudioTrack.getMinBufferSize(frequency,
+					channelConfiguration, audioEncoding) * 2;
+
+			AudioRecord audioRecord = new AudioRecord(
+					MediaRecorder.AudioSource.MIC, frequency,
+					channelConfiguration, audioEncoding, recBufSize);
+
+			AudioTrack audioTrack = new AudioTrack(AudioManager.STREAM_MUSIC,
+					frequency, channelConfiguration, audioEncoding, plyBufSize,
+					AudioTrack.MODE_STREAM);
+			byte[] recBuf = new byte[recBufSize];
+			audioRecord.startRecording();
+			audioTrack.play();
+			while (!isEnd) {
+				int readLen = audioRecord.read(recBuf, 0, recBufSize);
+				audioTrack.write(recBuf, 0, readLen);
+			}
+			//audioTrack.stop();
+			//audioRecord.stop();
+
+		}
+		
+	}
 
 	private void conntectA2dp(Context context,
 			final BluetoothDevice deviceToConnect) {
@@ -279,8 +299,5 @@ public class MainActivity extends Activity implements OnClickListener {
 			e.printStackTrace();
 		}
 	}
-	
-	
-
 
 }
