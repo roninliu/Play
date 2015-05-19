@@ -128,12 +128,13 @@ public class MainActivity extends Activity implements OnClickListener {
 			mAdapter.startDiscovery();
 			break;
 		case R.id.playDevice:
-			loggerMsg("声音测试");
+			loggerMsg("请说话.....");
 			rec = new RecordThread();
 			rec.start();
 			break;
 		case R.id.stopDevice:
 			isEnd = true;
+			loggerMsg("语音结束");
 			break;
 		
 		default:
@@ -148,6 +149,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		public void onReceive(Context context, Intent intent) {
 			String action = intent.getAction();
 			if (BluetoothDevice.ACTION_FOUND.equals(action)) {
+				loggerMsg("设备搜索中。。。。。。！");
 				BluetoothDevice tempDevice = intent
 						.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
 				if (tempDevice.getName().equalsIgnoreCase(DEVICE)) {
@@ -230,6 +232,7 @@ public class MainActivity extends Activity implements OnClickListener {
 		@Override
 		public void run() {
 			// TODO Auto-generated method stub
+			loggerMsg("语音进行中。。。。");
 			int recBufSize = AudioRecord.getMinBufferSize(frequency,
 					channelConfiguration, audioEncoding) * 2;
 			int plyBufSize = AudioTrack.getMinBufferSize(frequency,
@@ -294,6 +297,7 @@ public class MainActivity extends Activity implements OnClickListener {
 				m.setAccessible(true);
 				IBluetoothA2dp a2dp = (IBluetoothA2dp) m.invoke(null, b);
 				a2dp.connect(deviceToConnect);
+				loggerMsg("蓝牙设备已经连接");
 			}
 		} catch (Exception e) {
 			e.printStackTrace();

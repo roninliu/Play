@@ -34,14 +34,14 @@
             android:id="@+id/playDevice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="播放音频"
+            android:text="开始语音"
              android:textSize="12dp" />
 
         <Button
             android:id="@+id/stopDevice"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="停止音频" 
+            android:text="停止语音" 
              android:textSize="12dp"/>
 
     </LinearLayout>
